@@ -25,6 +25,7 @@ import gzip
 import logging
 import os.path
 import re
+import subprocess
 import time
 
 # Path of logfile to analyze (accepts jokers)
@@ -39,14 +40,22 @@ maxretry = 50
 # Minimum number of ips in the incriminated range
 min_ips = 5
 
-# Time format used in the logs
+# Time format used in fail2ban logs
 timeformat = '%Y-%m-%d %H:%M:%S,%f'
 
-# List of jails we don't want to match (for instance if you use recidive,
-# and also of course the jail that we will use for this script)
+# Whether or not to exclude from report already banned subnets.
+# This prevents the 'already banned' messages in fail2ban logs,
+# it could however let a delay before banning again those ranges
+# after restarting fail2ban. A larger findtime option in the subnets
+# jail is recommanded when this option is activated.
+excludeban = True
+
+# Jail used in fail2ban for this script
+subnetsjail = 'subnets'
+
+# List of jails we don't want to match (for instance if you use recidive)
 donotmatchjail = [
     'recidive',
-    'subnets',
 ]
 
 # Fail regex to use to check if a line matches. Variables %(time)s
@@ -98,14 +107,14 @@ logger.info("started with an analysis over %s" % human_readable_time(findtime))
 # Function to log the subnets to ban
 def logban(ipsubnet):
     data = {
-        'ban':      ipsubnet[0],
-        'subnet':   ipsubnet[1],
-        'ips':      ipsubnet[2],
-        'iplist':   ipsubnet[3],
+        'ban':      ipsubnet['ban'],
+        'subnet':   '%s/%s' % ipsubnet['subnet'],
+        'ipn':      ipsubnet['ipn'],
+        'iplist':   ipsubnet['iplist'],
     }
 
     logger.warning("subnet %(subnet)s has been banned "
-                   "%(ban)d times with %(ips)d ips" % data)
+                   "%(ban)d times with %(ipn)d ips" % data)
 
 
 ## TIME REGEX PREPARATION
@@ -124,6 +133,8 @@ for k, v in timereplace.items():
 timeregex = re.compile(timeregex_txt)
 
 ## BAN REGEX PREPARATION
+# Add the subnets jail to the jails not to match
+donotmatchjail += [subnetsjail, ]
 lineregex_txt = failregex % {
     'time': timeregex_txt,
     'donotmatchjail': ('(?:%s)' %
@@ -168,7 +179,7 @@ def get_subnet(iplist):
     # CIDR
     cidr = bin(mask)[2:].find('0')
 
-    return '%s/%d' % ('.'.join([str(chk) for chk in netstart]), cidr)
+    return ('.'.join([str(chk) for chk in netstart]), cidr)
 
 ## LOGIC
 for f in sorted(glob.glob(filepath), reverse=True):
@@ -208,14 +219,50 @@ for f in sorted(glob.glob(filepath), reverse=True):
 
 # Filter then sort the offenders by order or higher offense
 offenders = [
-    (v['ban'], get_subnet(v['ip']), len(v['ip']), v['ip'])
+    {
+        'ban': v['ban'],
+        'subnet': get_subnet(v['ip']),
+        'ipn': len(v['ip']),
+        'iplist': v['ip']
+    }
     for k, v in ipblocks.items() if (
         len(v['ip']) >= min_ips
         and v['ban'] >= maxretry
     )
 ]
 
-offenders.sort(reverse=True)
+if excludeban:
+    iptablesL = subprocess.Popen(
+        ['iptables', '-n', '-L', 'fail2ban-%s' % subnetsjail],
+        stdout=subprocess.PIPE)
 
-for ipsubnet in offenders:
-    logban(ipsubnet)
+    out = iptablesL.communicate()[0]
+
+    banList = dict(re.findall(
+        '\nDROP[^\n]*?'
+        '(?P<HOST>(?:[0-9]{1,3}\.){3}[0-9]{1,3})'
+        '/'
+        '(?P<CIDR>[0-9]{1,2})(?![0-9])', out))
+
+for o in offenders:
+    if excludeban:
+        net, cidr = o['subnet']
+        if net in banList:
+            if int(banList[net]) > cidr:
+                # We have to remove the previous ban in order for the
+                # new one, larger, to be applied
+                iptablesD = subprocess.Popen(
+                    ['iptables', '-D', 'fail2ban-%s' % subnetsjail,
+                     '-s', '%s/%s' % (net, banList[net]), '-j', 'DROP'],
+                    stdout=subprocess.PIPE)
+
+                out = iptablesD.communicate()[0]
+                if out:
+                    logger.error(
+                        "while unbanning %s/%s: %s" % (
+                            net, banList[net], out))
+            else:
+                # We just don't log this subnet
+                continue
+
+    logban(o)
