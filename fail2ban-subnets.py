@@ -72,6 +72,10 @@ logfile = '/var/log/fail2ban-subnets.log'
 ###### END OF CONFIGURATION
 ######
 
+## Version
+__version_info__ = (0, 1, 0, '', 0)
+__version__ = "%d.%d.%d%s" % __version_info__[:4]
+
 ## Initialize logging
 logging.basicConfig(
     format="%(asctime)s %(name)s: %(levelname)s %(message)s",
