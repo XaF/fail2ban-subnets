@@ -1,0 +1,9 @@
+# Python files
+*.py[ocd]
+
+## generic files to ignore
+*~
+*.lock
+*.DS_Store
+*.swp
+*.out
