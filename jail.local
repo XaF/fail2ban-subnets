@@ -1,0 +1,9 @@
+# Keep this jail at the end, even after the recidive one
+[subnets]
+enabled = true
+filter  = subnets
+action  = iptables-subnet[name=%(__name__)s, logpath="%(logpath)s"]
+logpath = /var/log/fail2ban-subnets.log
+bantime = 15552000 ; 6 months
+findtime= 3600 ; 1 hour, should be the same as our crontab
+maxretry= 1 ; once we have a line, we ban
