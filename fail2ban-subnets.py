@@ -175,13 +175,18 @@ def get_subnet(iplist):
 
     # Calculate mask
     mask = 0xFFFFFFFF ^ ip_to_int(*minip) ^ ip_to_int(*maxip)
-    netmask = [(mask & (0xFF << (8 * n))) >> 8 * n for n in (3, 2, 1, 0)]
-
-    # Network start
-    netstart = [minip[x] & netmask[x] for x in range(0, 4)]
 
     # CIDR
     cidr = bin(mask)[2:].find('0')
+
+    # Calculate new mask according to CIDR
+    mask = int(bin(mask)[2:cidr + 2].ljust(32, '0'), 2)
+
+    # Calculate netmask
+    netmask = [(mask & (0xFF << (8 * n))) >> 8 * n for n in (3, 2, 1, 0)]
+
+    # Calculate network start
+    netstart = [minip[x] & netmask[x] for x in range(0, 4)]
 
     return ('.'.join([str(chk) for chk in netstart]), cidr)
 
