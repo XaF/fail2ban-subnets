@@ -32,7 +32,7 @@ import time
 filepath = '/var/log/fail2ban.log*'
 
 # Maximum time to look back for our analyze
-findtime = 4 * 7 * 86400
+findtime = 4 * 4 * 7 * 86400
 
 # Maximum number of bans in the period before reporting the range
 maxretry = 50
