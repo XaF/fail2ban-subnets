@@ -73,7 +73,7 @@ logfile = '/var/log/fail2ban-subnets.log'
 ######
 
 ## Version
-__version_info__ = (0, 1, 0, '', 0)
+__version_info__ = (0, 2, 0, '', 0)
 __version__ = "%d.%d.%d%s" % __version_info__[:4]
 
 ## Initialize logging
