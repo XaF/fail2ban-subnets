@@ -263,10 +263,10 @@ for o in offenders:
                 iptablesD = subprocess.Popen(
                     ['iptables', '-D', 'fail2ban-%s' % subnetsjail,
                      '-s', '%s/%s' % (net, banList[net]), '-j', 'DROP'],
-                    stdout=subprocess.PIPE)
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
-                out = iptablesD.communicate()[0]
-                if out:
+                out = iptablesD.communicate()[0].rstrip()
+                if iptablesD.returncode != 0:
                     logger.error(
                         "while unbanning %s/%s: %s" % (
                             net, banList[net], out))
