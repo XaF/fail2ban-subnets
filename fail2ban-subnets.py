@@ -61,8 +61,8 @@ donotmatchjail = [
 # Fail regex to use to check if a line matches. Variables %(time)s
 # and %(donotmatchjail)s can be used to insert previously mentionned
 # parameters.
-failregex = ('%(time)s fail2ban\.actions(?:\[[0-9]+\])?:(?: [A-Z]+)? ' +
-             '\[(?!%(donotmatchjail)s\])(?P<JAIL>.*)\] ' +
+failregex = ('%(time)s fail2ban\.actions(?:[\s\t]*\[[0-9]+\])?:' +
+             '(?: [A-Z]+)?[\s\t]+\[(?!%(donotmatchjail)s\])(?P<JAIL>.*)\] ' +
              'Ban (?P<HOST>(?:[0-9]{1,3}\.){3}[0-9]{1,3})$')
 
 # Where to store this scripts' logfile
